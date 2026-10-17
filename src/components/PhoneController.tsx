@@ -29,6 +29,7 @@ import {
 import type { GameInput } from '../game/types.ts';
 import { RETRO_GAMES, RetroGameId } from '../game/retroGames.ts';
 import { sound } from '../game/audio.ts';
+import { NetworkClient } from '../network/networkClient.ts';
 
 interface PhoneControllerProps {
   roomId: string;
@@ -70,7 +71,7 @@ export const PhoneController: React.FC<PhoneControllerProps> = ({
     score: 0,
   });
 
-  const wsRef = useRef<WebSocket | null>(null);
+  const netRef = useRef<NetworkClient | null>(null);
 
   // Controller inputs
   const inputRef = useRef<GameInput>({
@@ -111,13 +112,7 @@ export const PhoneController: React.FC<PhoneControllerProps> = ({
     if (onInputEmit) {
       onInputEmit(currentInput);
     }
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({
-        type: 'controller_input',
-        payload: currentInput,
-        timestamp: Date.now(),
-      }));
-    }
+    netRef.current?.sendInput(currentInput);
   }, [onInputEmit]);
 
   // Switch game handler
@@ -126,91 +121,39 @@ export const PhoneController: React.FC<PhoneControllerProps> = ({
     setShowGameSelector(false);
     triggerHaptic([40, 40, 80]);
     if (onGameChange) onGameChange(gameId);
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({
-        type: 'change_game',
-        gameId,
-      }));
-    }
+    netRef.current?.sendGameChange(gameId);
   };
 
-  // Connect WebSocket
+  // Multi-Transport Network Client (WebSocket + WebRTC P2P + BroadcastChannel)
   useEffect(() => {
-    let active = true;
-    let ws: WebSocket | null = null;
-    let pingInterval: NodeJS.Timeout;
-
-    const connect = () => {
-      try {
-        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const wsUrl = `${protocol}//${window.location.host}`;
-        ws = new WebSocket(wsUrl);
-        wsRef.current = ws;
-
-        ws.onopen = () => {
-          if (!active) return;
-          setConnected(true);
-          ws?.send(JSON.stringify({
-            type: 'register_controller',
-            roomId,
-            requestedPlayerId: playerId,
-          }));
-        };
-
-        ws.onmessage = (e) => {
-          if (!active) return;
-          try {
-            const data = JSON.parse(e.data);
-            if (data.type === 'registered') {
-              setPlayerId(data.playerId);
-              triggerHaptic([50, 50, 100]);
-            } else if (data.type === 'game_changed') {
-              if (data.gameId) {
-                setActiveGame(data.gameId);
-                triggerHaptic([30, 30]);
-              }
-            } else if (data.type === 'haptic_event') {
-              if (data.pattern) triggerHaptic(data.pattern);
-              setTelemetry(prev => ({
-                ...prev,
-                health: data.health !== undefined ? data.health : prev.health,
-                shield: data.shield !== undefined ? data.shield : prev.shield,
-                score: data.score !== undefined ? data.score : prev.score,
-              }));
-            } else if (data.type === 'pong') {
-              const rtt = Date.now() - data.clientTimestamp;
-              setPingMs(Math.max(4, rtt));
-            }
-          } catch {
-            // ignore
-          }
-        };
-
-        ws.onclose = () => {
-          if (!active) return;
-          setConnected(false);
-          setTimeout(connect, 2000);
-        };
-      } catch {
+    const net = new NetworkClient('controller', roomId, playerId, {
+      onConnected: (info) => {
+        setConnected(true);
+        if (info.playerId) setPlayerId(info.playerId);
+        triggerHaptic([50, 50, 100]);
+      },
+      onDisconnected: () => {
         setConnected(false);
-      }
-    };
-
-    connect();
-
-    pingInterval = setInterval(() => {
-      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-        wsRef.current.send(JSON.stringify({
-          type: 'ping',
-          clientTimestamp: Date.now(),
+      },
+      onGameChanged: (gameId) => {
+        setActiveGame(gameId);
+        triggerHaptic([30, 30]);
+      },
+      onHapticEvent: (data) => {
+        if (data.pattern) triggerHaptic(data.pattern);
+        setTelemetry((prev) => ({
+          ...prev,
+          health: data.health !== undefined ? data.health : prev.health,
+          shield: data.shield !== undefined ? data.shield : prev.shield,
+          score: data.score !== undefined ? data.score : prev.score,
         }));
-      }
-    }, 2500);
+      },
+      onPing: (ms) => setPingMs(ms),
+    });
+    netRef.current = net;
 
     return () => {
-      active = false;
-      clearInterval(pingInterval);
-      if (ws) ws.close();
+      net.dispose();
     };
   }, [roomId, playerId, triggerHaptic]);
 

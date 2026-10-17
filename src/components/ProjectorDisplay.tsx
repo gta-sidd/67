@@ -23,6 +23,8 @@ import { RETRO_GAMES, RetroGameId } from '../game/retroGames.ts';
 import type { GameInput, GameStatus } from '../game/types.ts';
 import { sound } from '../game/audio.ts';
 
+import { NetworkClient } from '../network/networkClient.ts';
+
 interface ProjectorDisplayProps {
   roomId: string;
   activeGame?: RetroGameId;
@@ -41,6 +43,7 @@ export const ProjectorDisplay: React.FC<ProjectorDisplayProps> = ({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const engineRef = useRef<RetroArcadeEngine | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const netRef = useRef<NetworkClient | null>(null);
 
   const [activeGame, setActiveGame] = useState<RetroGameId>(propActiveGame);
   const [gameStatus, setGameStatus] = useState<GameStatus>('title');
@@ -63,8 +66,6 @@ export const ProjectorDisplay: React.FC<ProjectorDisplayProps> = ({
   const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
   const [showQrModal, setShowQrModal] = useState(false);
 
-  const wsRef = useRef<WebSocket | null>(null);
-
   // Sync prop changes
   useEffect(() => {
     if (propActiveGame && propActiveGame !== activeGame) {
@@ -76,7 +77,8 @@ export const ProjectorDisplay: React.FC<ProjectorDisplayProps> = ({
   // Generate QR code for phone controller
   useEffect(() => {
     const origin = typeof window !== 'undefined' ? window.location.origin : '';
-    const controllerUrl = `${origin}/?mode=controller&room=${roomId}&game=${activeGame}`;
+    const pathname = typeof window !== 'undefined' ? window.location.pathname : '/';
+    const controllerUrl = `${origin}${pathname}?mode=controller&room=${roomId}&game=${activeGame}`;
     QRCode.toDataURL(controllerUrl, {
       width: 320,
       margin: 1,
@@ -90,81 +92,40 @@ export const ProjectorDisplay: React.FC<ProjectorDisplayProps> = ({
   }, [roomId, activeGame]);
 
   // Switch game cartridge
-  const selectGame = (gameId: RetroGameId) => {
+  const selectGame = useCallback((gameId: RetroGameId) => {
     setActiveGame(gameId);
     setShowCartridgeMenu(false);
     engineRef.current?.setGame(gameId);
     sound.playClick(true);
     if (onGameChange) onGameChange(gameId);
+    netRef.current?.sendGameChange(gameId);
+  }, [onGameChange]);
 
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({
-        type: 'change_game',
-        gameId,
-      }));
-    }
-  };
-
-  // Handle WebSocket connection for display
+  // Handle Multi-Transport Network Client (WebSocket + WebRTC + BroadcastChannel)
   useEffect(() => {
-    let active = true;
-    let ws: WebSocket | null = null;
-
-    const connect = () => {
-      try {
-        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const wsUrl = `${protocol}//${window.location.host}`;
-        ws = new WebSocket(wsUrl);
-        wsRef.current = ws;
-
-        ws.onopen = () => {
-          if (!active) return;
-          ws?.send(JSON.stringify({
-            type: 'register_display',
-            roomId,
-          }));
-        };
-
-        ws.onmessage = (e) => {
-          if (!active) return;
-          try {
-            const data = JSON.parse(e.data);
-            if (data.type === 'registered') {
-              setConnectedControllers(data.connectedControllers || []);
-            } else if (data.type === 'controller_joined') {
-              setConnectedControllers((prev) => Array.from(new Set([...prev, data.playerId])));
-              sound.playClick(true);
-            } else if (data.type === 'controller_left') {
-              setConnectedControllers((prev) => prev.filter((id) => id !== data.playerId));
-            } else if (data.type === 'game_changed') {
-              if (data.gameId) {
-                setActiveGame(data.gameId);
-                engineRef.current?.setGame(data.gameId);
-              }
-            } else if (data.type === 'input') {
-              if (engineRef.current) {
-                engineRef.current.setInput(data.payload);
-              }
-            }
-          } catch {
-            // ignore
-          }
-        };
-
-        ws.onclose = () => {
-          if (!active) return;
-          setTimeout(connect, 2000);
-        };
-      } catch {
-        // ignore
-      }
-    };
-
-    connect();
+    const net = new NetworkClient('display', roomId, 1, {
+      onConnected: () => {
+        // Connected
+      },
+      onControllerJoined: (pid) => {
+        setConnectedControllers((prev) => Array.from(new Set([...prev, pid])));
+        sound.playClick(true);
+      },
+      onControllerLeft: (pid) => {
+        setConnectedControllers((prev) => prev.filter((id) => id !== pid));
+      },
+      onInput: (input) => {
+        engineRef.current?.setInput(input);
+      },
+      onGameChanged: (gameId) => {
+        setActiveGame(gameId);
+        engineRef.current?.setGame(gameId);
+      },
+    });
+    netRef.current = net;
 
     return () => {
-      active = false;
-      if (ws) ws.close();
+      net.dispose();
     };
   }, [roomId]);
 
@@ -176,16 +137,7 @@ export const ProjectorDisplay: React.FC<ProjectorDisplayProps> = ({
     shield: number,
     score: number
   ) => {
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({
-        type: 'rumble_feedback',
-        targetPlayerId,
-        pattern,
-        health,
-        shield,
-        score,
-      }));
-    }
+    netRef.current?.sendHapticFeedback(pattern, health, shield, score, targetPlayerId);
   }, []);
 
   // Initialize Retro Arcade Engine
