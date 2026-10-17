@@ -1,0 +1,8 @@
+{
+  "name": "CastPad: Big Screen Game & Phone Controller",
+  "description": "Play games on your projector or TV while using your smartphone exclusively as a wireless tactile gamepad with virtual joystick, action buttons, and haptics.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
