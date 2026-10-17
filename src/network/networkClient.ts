@@ -143,16 +143,23 @@ export class NetworkClient {
         });
 
         this.peer.on('connection', (conn) => {
+          if (!conn) return;
           this.peerConnections.set(conn.peer, conn);
 
           conn.on('open', () => {
             const pid = this.peerConnections.size;
-            conn.send({ type: 'registered', role: 'controller', playerId: pid });
+            try {
+              conn.send({ type: 'registered', role: 'controller', playerId: pid });
+            } catch { /* ignore */ }
             this.callbacks.onControllerJoined?.(pid);
           });
 
           conn.on('data', (data) => {
             this.handleMessage(data, 'webrtc');
+          });
+
+          conn.on('error', () => {
+            // Handled safely
           });
 
           conn.on('close', () => {
@@ -162,7 +169,7 @@ export class NetworkClient {
         });
 
         this.peer.on('error', () => {
-          // Fallback handled by broadcast or websocket
+          // Handled safely
         });
       } else {
         // Controller Role
@@ -176,7 +183,7 @@ export class NetworkClient {
         });
 
         this.peer.on('error', () => {
-          // Retry connecting
+          // Retry connecting after 3s if not already connected
           setTimeout(() => {
             if (!this.disposed && !this.isConnected) {
               this.connectToDisplayPeer(cleanRoom);
@@ -190,29 +197,38 @@ export class NetworkClient {
   }
 
   private connectToDisplayPeer(cleanRoom: string) {
-    if (!this.peer || this.disposed) return;
-    const targetPeerId = `castpad-${cleanRoom}-screen`;
-    const conn = this.peer.connect(targetPeerId, { reliable: false });
-    this.controllerPeerConn = conn;
+    if (!this.peer || this.peer.destroyed || this.disposed) return;
+    try {
+      const targetPeerId = `castpad-${cleanRoom}-screen`;
+      const conn = this.peer.connect(targetPeerId);
+      if (!conn) return;
+      this.controllerPeerConn = conn;
 
-    conn.on('open', () => {
-      if (this.disposed) return;
-      this.isConnected = true;
-      this.transport = 'webrtc';
-      this.callbacks.onConnected?.({ role: 'controller', mode: 'webrtc', playerId: this.playerId });
-    });
+      conn.on('open', () => {
+        if (this.disposed) return;
+        this.isConnected = true;
+        this.transport = 'webrtc';
+        this.callbacks.onConnected?.({ role: 'controller', mode: 'webrtc', playerId: this.playerId });
+      });
 
-    conn.on('data', (data) => {
-      this.handleMessage(data, 'webrtc');
-    });
+      conn.on('data', (data) => {
+        this.handleMessage(data, 'webrtc');
+      });
 
-    conn.on('close', () => {
-      if (this.transport === 'webrtc') {
-        this.isConnected = false;
-        this.transport = 'none';
-        this.callbacks.onDisconnected?.();
-      }
-    });
+      conn.on('error', () => {
+        // Handled safely
+      });
+
+      conn.on('close', () => {
+        if (this.transport === 'webrtc') {
+          this.isConnected = false;
+          this.transport = 'none';
+          this.callbacks.onDisconnected?.();
+        }
+      });
+    } catch {
+      // Handled safely
+    }
   }
 
   // Handle incoming message across any transport
