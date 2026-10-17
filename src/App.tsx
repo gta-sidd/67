@@ -14,7 +14,7 @@ import { Tv, Smartphone, Columns, HelpCircle, Gamepad2 } from 'lucide-react';
 export default function App() {
   const [mode, setMode] = useState<'simulator' | 'projector' | 'controller'>('simulator');
   const [roomId, setRoomId] = useState('CAST1');
-  const [activeGame, setActiveGame] = useState<RetroGameId>('void_horizon');
+  const [activeGame, setActiveGame] = useState<RetroGameId>('super_plumber');
   const [isHelpOpen, setIsHelpOpen] = useState(false);
 
   // Initialize mode, room, and game from URL params

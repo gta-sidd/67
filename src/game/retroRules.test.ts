@@ -9,6 +9,8 @@ import {
   checkPaddleBallBounce,
   updateRacerPosition,
   updateVectorShipPhysics,
+  initPlumberStage,
+  updatePlumberMovement,
 } from './retroRules.ts';
 
 test('initSnakeState sets up initial snake body and food', () => {
@@ -75,4 +77,40 @@ test('updateVectorShipPhysics applies thrust and rotates', () => {
   updateVectorShipPhysics(ship, 0, true, 0.1, 1920, 1080);
   assert.ok(ship.vx > 0, 'Ship should gain positive vx forward');
   assert.ok(ship.x > 500, 'Ship position should move forward');
+});
+
+test('initPlumberStage initializes player, blocks, and enemies', () => {
+  const stage = initPlumberStage();
+  assert.equal(stage.player.lives, 3);
+  assert.equal(stage.player.coins, 0);
+  assert.ok(stage.blocks.length > 10, 'Stage should have blocks');
+  assert.ok(stage.enemies.length >= 5, 'Stage should have enemies');
+  assert.equal(stage.flagpoleX, 5800);
+});
+
+test('updatePlumberMovement allows jumping and stomping enemies', () => {
+  const stage = initPlumberStage();
+  const input = { stickX: 1, stickY: 0, fire: false, boost: true, shield: false, bomb: false };
+
+  // Jump triggered
+  let jumped = false;
+  updatePlumberMovement(stage.player, stage.blocks, stage.enemies, input, 0.05, {
+    onJump: () => { jumped = true; },
+  });
+
+  assert.equal(jumped, true, 'Should trigger jump callback');
+  assert.ok(stage.player.vy < 0, 'Player vy should be negative when jumping');
+  assert.ok(stage.player.vx > 0, 'Player should be running right');
+
+  // Test stomp collision
+  const testPlayer = { ...stage.player, x: 520, y: 800, vy: 400 }; // Falling directly onto enemy #1
+  const testEnemy = { ...stage.enemies[0], x: 520, y: 835 };
+  let stomped = false;
+  updatePlumberMovement(testPlayer, [], [testEnemy], { stickX: 0, stickY: 0, fire: false, boost: false, shield: false, bomb: false }, 0.05, {
+    onStomp: () => { stomped = true; },
+  });
+
+  assert.equal(stomped, true, 'Should trigger stomp callback');
+  assert.equal(testEnemy.isSquashed, true, 'Enemy should be squashed');
+  assert.ok(testPlayer.vy < 0, 'Player should bounce upward after stomp');
 });

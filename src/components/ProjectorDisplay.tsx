@@ -35,7 +35,7 @@ interface ProjectorDisplayProps {
 
 export const ProjectorDisplay: React.FC<ProjectorDisplayProps> = ({
   roomId,
-  activeGame: propActiveGame = 'void_horizon',
+  activeGame: propActiveGame = 'super_plumber',
   onGameChange,
   onOpenHelp,
   onOpenPhoneView,

@@ -1,4 +1,5 @@
 export type RetroGameId =
+  | 'super_plumber'
   | 'void_horizon'
   | 'cyber_snake'
   | 'galactic_invaders'
@@ -14,12 +15,24 @@ export interface RetroGameDef {
   genre: string;
   badge: string;
   accentColor: string;
-  controllerType: 'flight_stick' | 'dpad_turbo' | 'invader_slider' | 'paddle_slider' | 'steering_wheel' | 'vector_controls';
+  controllerType: 'platformer_nes' | 'flight_stick' | 'dpad_turbo' | 'invader_slider' | 'paddle_slider' | 'steering_wheel' | 'vector_controls';
   controlsSummary: string;
   description: string;
 }
 
 export const RETRO_GAMES: RetroGameDef[] = [
+  {
+    id: 'super_plumber',
+    title: 'Super Plumber',
+    subtitle: 'Mushroom Kingdom 1985',
+    year: '1985',
+    genre: '2D Platformer',
+    badge: 'NES D-PAD + [A] [B]',
+    accentColor: '#ef4444',
+    controllerType: 'platformer_nes',
+    controlsSummary: 'D-Pad Left/Right · [A] Jump · [B] Sprint Dash / Fireball',
+    description: 'Iconic side-scrolling platformer! Stomp Goombas, punch mystery [?] blocks for coins, leap over warp pipes, and slide down the flagpole.',
+  },
   {
     id: 'void_horizon',
     title: 'Void Horizon',

@@ -419,6 +419,113 @@ export const PhoneController: React.FC<PhoneControllerProps> = ({
       {/* Main Gamepad Touch Area - Morphs based on activeGame */}
       <main className="relative flex-1 flex flex-row items-center justify-around p-2 sm:p-4 gap-2 sm:gap-4 z-10 overflow-hidden">
         {/* =========================================================================
+            GAME 0: SUPER PLUMBER (NES Cross D-Pad + [B] Dash/Fire + [A] Jump)
+           ========================================================================= */}
+        {activeGame === 'super_plumber' && (
+          <>
+            {/* Left Side: Tactile NES Cross D-Pad */}
+            <div className="flex flex-col items-center justify-center flex-1 max-w-[240px]">
+              <div className="mb-2 text-[10px] font-mono tracking-widest text-red-400 uppercase flex items-center gap-1.5">
+                <Gamepad2 className="w-3.5 h-3.5 text-red-400" />
+                NES CROSS D-PAD
+              </div>
+              <div className="relative w-40 h-40 sm:w-44 sm:h-44 grid grid-cols-3 grid-rows-3 gap-1.5 p-2 bg-slate-900 rounded-3xl border-2 border-red-500/50 shadow-[0_0_24px_rgba(239,68,68,0.25)]">
+                <div />
+                <button
+                  onMouseDown={() => setDpadDirection(0, -1)}
+                  onTouchStart={() => setDpadDirection(0, -1)}
+                  onTouchEnd={() => setDpadDirection(0, 0)}
+                  onMouseUp={() => setDpadDirection(0, 0)}
+                  className="bg-slate-800 border-2 border-red-500/70 rounded-xl flex items-center justify-center active:bg-red-600 active:text-white transition-all text-slate-300 shadow-md"
+                  aria-label="Look Up"
+                >
+                  <ArrowUp className="w-6 h-6" />
+                </button>
+                <div />
+
+                <button
+                  onMouseDown={() => setDpadDirection(-1, 0)}
+                  onTouchStart={() => setDpadDirection(-1, 0)}
+                  onTouchEnd={() => setDpadDirection(0, 0)}
+                  onMouseUp={() => setDpadDirection(0, 0)}
+                  className="bg-slate-800 border-2 border-red-500/70 rounded-xl flex items-center justify-center active:bg-red-600 active:text-white transition-all text-slate-300 shadow-md"
+                  aria-label="Move Left"
+                >
+                  <ArrowLeft className="w-7 h-7" />
+                </button>
+                <div className="bg-slate-950 rounded-lg flex items-center justify-center border border-red-900/50">
+                  <div className="w-3.5 h-3.5 rounded-full bg-red-500/60" />
+                </div>
+                <button
+                  onMouseDown={() => setDpadDirection(1, 0)}
+                  onTouchStart={() => setDpadDirection(1, 0)}
+                  onTouchEnd={() => setDpadDirection(0, 0)}
+                  onMouseUp={() => setDpadDirection(0, 0)}
+                  className="bg-slate-800 border-2 border-red-500/70 rounded-xl flex items-center justify-center active:bg-red-600 active:text-white transition-all text-slate-300 shadow-md"
+                  aria-label="Move Right"
+                >
+                  <ArrowRight className="w-7 h-7" />
+                </button>
+
+                <div />
+                <button
+                  onMouseDown={() => setDpadDirection(0, 1)}
+                  onTouchStart={() => setDpadDirection(0, 1)}
+                  onTouchEnd={() => setDpadDirection(0, 0)}
+                  onMouseUp={() => setDpadDirection(0, 0)}
+                  className="bg-slate-800 border-2 border-red-500/70 rounded-xl flex items-center justify-center active:bg-red-600 active:text-white transition-all text-slate-300 shadow-md"
+                  aria-label="Crouch"
+                >
+                  <ArrowDown className="w-6 h-6" />
+                </button>
+                <div />
+              </div>
+              <div className="mt-1 text-[9px] font-mono text-slate-400">HOLD TO RUN LEFT / RIGHT</div>
+            </div>
+
+            {/* Right Side: Angled NES Action Buttons [B] and [A] */}
+            <div className="flex flex-col items-center justify-center flex-1 max-w-[260px]">
+              <div className="mb-2 text-[10px] font-mono tracking-widest text-red-400 uppercase flex items-center gap-1.5">
+                <Zap className="w-3.5 h-3.5 text-red-400" />
+                ACTION BUTTONS
+              </div>
+              <div className="flex items-center gap-3 sm:gap-4 p-3 bg-slate-900/90 rounded-3xl border-2 border-red-500/40 shadow-xl">
+                {/* Button [B]: Dash & Fireball */}
+                <button
+                  onTouchStart={() => setButtonState('fire', true)}
+                  onTouchEnd={() => setButtonState('fire', false)}
+                  onMouseDown={() => setButtonState('fire', true)}
+                  onMouseUp={() => setButtonState('fire', false)}
+                  className="w-22 h-22 sm:w-26 sm:h-26 rounded-full bg-gradient-to-b from-red-600 to-red-900 border-4 border-red-400 shadow-[0_0_20px_rgba(239,68,68,0.5)] flex flex-col items-center justify-center active:scale-95 transition-all select-none"
+                  aria-label="Dash and Fireball"
+                >
+                  <Flame className="w-7 h-7 sm:w-8 sm:h-8 text-white drop-shadow" />
+                  <span className="font-black font-mono text-base sm:text-lg text-white mt-0.5">B</span>
+                  <span className="text-[8px] sm:text-[9px] font-mono text-red-200 uppercase font-semibold">DASH/FIRE</span>
+                </button>
+
+                {/* Button [A]: Jump */}
+                <button
+                  onTouchStart={() => setButtonState('boost', true)}
+                  onTouchEnd={() => setButtonState('boost', false)}
+                  onMouseDown={() => setButtonState('boost', true)}
+                  onMouseUp={() => setButtonState('boost', false)}
+                  className="w-22 h-22 sm:w-26 sm:h-26 rounded-full bg-gradient-to-b from-rose-500 to-rose-800 border-4 border-rose-300 shadow-[0_0_25px_rgba(244,63,94,0.6)] flex flex-col items-center justify-center active:scale-95 transition-all select-none -translate-y-2 sm:-translate-y-3"
+                  aria-label="Jump"
+                >
+                  <ArrowUp className="w-7 h-7 sm:w-8 sm:h-8 text-white drop-shadow stroke-[3]" />
+                  <span className="font-black font-mono text-base sm:text-lg text-white mt-0.5">A</span>
+                  <span className="text-[8px] sm:text-[9px] font-mono text-rose-100 uppercase font-semibold">JUMP</span>
+                </button>
+              </div>
+              <div className="mt-1 text-[9px] font-mono text-slate-400 text-center">
+                [A] LEAP / STOMP · [B] RUN & FIREBALL
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* =========================================================================
             GAME 1: VOID HORIZON (Analog Flight Stick + 4 Combat Buttons)
            ========================================================================= */}
         {activeGame === 'void_horizon' && (
